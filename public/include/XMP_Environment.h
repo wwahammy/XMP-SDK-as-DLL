@@ -56,7 +56,16 @@
     #define XMP_MacBuild  0
     #define XMP_WinBuild  1
     #define XMP_UNIXBuild 0
-
+	#if defined (XMPCOREEXPORT)
+		#define XMPDLLIMPEXP __declspec(dllexport)
+	#elif defined (XMPCOREIMPORT)
+		#define XMPDLLIMPEXP __declspec(dllimport)
+	#endif
+	#if defined (XMPFILEEXPORT)
+		#define XMPFILEDLLIMPEXP __declspec(dllexport)
+	#elif defined (XMPFILEIMPORT)
+		#define XMPFILEDLLIMPEXP __declspec(dllimport)
+	#endif
 #elif defined ( UNIX_ENV )
 
 	#if 0	// ! maybe someday - ! UNIX_ENV

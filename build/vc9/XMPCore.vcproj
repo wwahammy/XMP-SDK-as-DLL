@@ -47,7 +47,7 @@
 				FavorSizeOrSpeed="0"
 				WholeProgramOptimization="false"
 				AdditionalIncludeDirectories=".\;..\;..\..\public\include\;..\..\source\common\;..\..\source\XMPCore\;&quot;..\..\third-party\expat\lib\&quot;;&quot;..\..\third-party\MD5\&quot;"
-				PreprocessorDefinitions="WIN32=1;_WINDOWS=1;WIN_ENV=1;HAVE_EXPAT_CONFIG_H=1;XML_STATIC=1;DEBUG=1;_DEBUG=1;HAVE_VSNPRINTF=1"
+				PreprocessorDefinitions="WIN32=1;_WINDOWS=1;WIN_ENV=1;HAVE_EXPAT_CONFIG_H=1;XML_STATIC=1;DEBUG=1;_DEBUG=1;HAVE_VSNPRINTF=1;XMPCOREEXPORT=1"
 				StringPooling="true"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -61,7 +61,6 @@
 				WarningLevel="3"
 				WarnAsError="false"
 				Detect64BitPortabilityProblems="false"
-				DebugInformationFormat="3"
 				CompileAs="2"
 			/>
 			<Tool

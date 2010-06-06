@@ -52,17 +52,17 @@ XMP_NamespaceTable * sRegisteredNamespaces = 0;
 
 XMP_AliasMap * sRegisteredAliasMap = 0;
 
-void *              voidVoidPtr    = 0;	// Used to backfill null output parameters.
-XMP_StringPtr		voidStringPtr  = 0;
-XMP_StringLen		voidStringLen  = 0;
-XMP_OptionBits		voidOptionBits = 0;
-XMP_Uns8			voidByte       = 0;
-bool				voidBool       = 0;
-XMP_Int32			voidInt32      = 0;
-XMP_Int64			voidInt64      = 0;
-double				voidDouble     = 0.0;
-XMP_DateTime		voidDateTime;
-WXMP_Result 		void_wResult;
+XMPDLLIMPEXP void *              voidVoidPtr    = 0;	// Used to backfill null output parameters.
+XMPDLLIMPEXP XMP_StringPtr		voidStringPtr  = 0;
+XMPDLLIMPEXP XMP_StringLen		voidStringLen  = 0;
+XMPDLLIMPEXP XMP_OptionBits		voidOptionBits = 0;
+XMPDLLIMPEXP XMP_Uns8			voidByte       = 0;
+XMPDLLIMPEXP bool				voidBool       = 0;
+XMPDLLIMPEXP XMP_Int32			voidInt32      = 0;
+XMPDLLIMPEXP XMP_Int64			voidInt64      = 0;
+XMPDLLIMPEXP double				voidDouble     = 0.0;
+XMPDLLIMPEXP XMP_DateTime		voidDateTime;
+XMPDLLIMPEXP WXMP_Result 		void_wResult;
 
 // =================================================================================================
 // Local Utilities

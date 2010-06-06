@@ -109,12 +109,13 @@ extern XMP_Int32 sXMPFilesInitCount;
 
 #endif
 
-extern XMP_FileFormat voidFileFormat;	// Used as sink for unwanted output parameters.
-extern XMP_PacketInfo voidPacketInfo;
-extern void *         voidVoidPtr;
-extern XMP_StringPtr  voidStringPtr;
-extern XMP_StringLen  voidStringLen;
-extern XMP_OptionBits voidOptionBits;
+XMPFILEDLLIMPEXP extern XMP_FileFormat voidFileFormat;	// Used as sink for unwanted output parameters.
+
+XMPDLLIMPEXP extern XMP_PacketInfo voidPacketInfo;
+XMPDLLIMPEXP extern void *         voidVoidPtr;
+XMPDLLIMPEXP extern XMP_StringPtr  voidStringPtr;
+XMPDLLIMPEXP extern XMP_StringLen  voidStringLen;
+XMPDLLIMPEXP extern XMP_OptionBits voidOptionBits;
 
 static const XMP_Uns8 * kUTF8_PacketStart = (const XMP_Uns8 *) "<?xpacket begin=";
 static const XMP_Uns8 * kUTF8_PacketID    = (const XMP_Uns8 *) "W5M0MpCehiHzreSzNTczkc9d";

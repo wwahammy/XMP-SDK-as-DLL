@@ -45,7 +45,7 @@ using namespace std;
 
 bool ignoreLocalText = false;
 
-XMP_FileFormat voidFileFormat = 0;	// Used as sink for unwanted output parameters.
+XMPFILEDLLIMPEXP XMP_FileFormat voidFileFormat = 0;	// Used as sink for unwanted output parameters.
 // =================================================================================================
 
 // Add all known mappings, multiple mappings (tif, tiff) are OK.

@@ -46,7 +46,7 @@
 				UseUnicodeResponseFiles="true"
 				Optimization="0"
 				AdditionalIncludeDirectories=".\;..\;..\..\public\include\;..\..\source\XMPFiles\;..\..\source\XMPFiles\FileHandlers;..\..\source\XMPFiles\FormatSupport\;..\..\source\common\;&quot;..\..\third-party\MD5\&quot;;&quot;..\..\third-party\zlib\&quot;"
-				PreprocessorDefinitions="WIN32=1;_WINDOWS=1;WIN_ENV=1;XMP_StaticBuild=1;DEBUG=1;_CRT_SECURE_NO_WARNINGS=1;_DEBUG=1"
+				PreprocessorDefinitions="WIN32=1;_WINDOWS=1;WIN_ENV=1;XMP_StaticBuild=1;DEBUG=1;_CRT_SECURE_NO_WARNINGS=1;_DEBUG=1; XMPCOREIMPORT=1;XMPFILEEXPORT=1"
 				StringPooling="true"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -56,7 +56,6 @@
 				ObjectFile="..\..\intermediate\windows\debug\"
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="false"
-				DebugInformationFormat="3"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"

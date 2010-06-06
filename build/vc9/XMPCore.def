@@ -159,16 +159,6 @@ WXMPUtils_RemoveProperties_1
 
 WXMPUtils_DuplicateSubtree_1  
 
-voidVoidPtr 
-voidStringPtr 
-voidStringLen 
-voidOptionBits
-voidByte DATA
-voidBool DATA
-voidInt32 DATA
-voidInt64 DATA
-voidDouble DATA
-voidDateTime DATA
-void_wResult DATA
+
 
 XMP_NewExpatAdapter

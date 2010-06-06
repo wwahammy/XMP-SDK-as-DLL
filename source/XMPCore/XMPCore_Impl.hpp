@@ -64,17 +64,17 @@ extern XMP_AliasMap * sRegisteredAliasMap;
 
 #define WtoXMPDocOps_Ptr(docRef)	((XMPDocOps*)(docRef))
 
-extern void *			voidVoidPtr;	// Used to backfill null output parameters.
-extern XMP_StringPtr	voidStringPtr;
-extern XMP_StringLen	voidStringLen;
-extern XMP_OptionBits	voidOptionBits;
-extern XMP_Bool			voidByte;
-extern bool				voidBool;
-extern XMP_Int32		voidInt32;
-extern XMP_Int64		voidInt64;
-extern double			voidDouble;
-extern XMP_DateTime		voidDateTime;
-extern WXMP_Result		void_wResult;
+XMPDLLIMPEXP extern void *			voidVoidPtr;	// Used to backfill null output parameters.
+XMPDLLIMPEXP extern XMP_StringPtr	voidStringPtr;
+XMPDLLIMPEXP extern XMP_StringLen	voidStringLen;
+XMPDLLIMPEXP extern XMP_OptionBits	voidOptionBits;
+XMPDLLIMPEXP extern XMP_Bool			voidByte;
+XMPDLLIMPEXP extern bool				voidBool;
+XMPDLLIMPEXP extern XMP_Int32		voidInt32;
+XMPDLLIMPEXP extern XMP_Int64		voidInt64;
+XMPDLLIMPEXP extern double			voidDouble;
+XMPDLLIMPEXP extern XMP_DateTime		voidDateTime;
+XMPDLLIMPEXP extern WXMP_Result		void_wResult;
 
 #define kHexDigits "0123456789ABCDEF"
 
