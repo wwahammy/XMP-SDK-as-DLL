@@ -1,0 +1,5 @@
+intermediate
+*.suo
+*.ncb
+*.sdf
+ipch
