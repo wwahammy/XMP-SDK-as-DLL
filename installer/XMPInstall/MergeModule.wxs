@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <?define Version = "5.1"?>
+  <?define Manufacturer = "XMPInstall" ?>
+  <?if $(var.Platform) = "x64"?>
+    <?define PlatformName = "x64"?>
+  <?else?>
+    <?define PlatformName = "Win32"?>
+  <?endif?>
+  <?define SourceFolder = "$(var.SolutionDir)..\..\public\libraries\windows\$(var.PlatformName)\$(var.Configuration)\"?>
+  <?define XMPCoreDll = "$(var.SourceFolder)XMPCore.dll"?>
+  <?define XMPFilesDll = "$(var.SourceFolder)XMPFiles.dll"?>
+  <?if $(var.Platform) = "x64"?>
+	  <Module Id="XMPInstall64" Language="1033" Version="$(var.Version)">
+		  <Package Id="36493a2c-8b63-44c2-892b-2ce9173a2a94" Manufacturer="$(var.Manufacturer)" InstallerVersion="400"  Platform="x64"/>
+   
+		  <Directory Id="TARGETDIR" Name="SourceDir">
+			  <Directory Id="System64Folder">
+
+				 
+				 <Component Id="ModuleComponent64" Guid="32ae10cb-cc37-4aea-8134-320ec4ab16be">
+           <File Source="$(var.XMPCoreDll)"/>
+           <File Source="$(var.XMPFilesDll)"/>
+				 </Component>
+
+			  </Directory>
+		  </Directory>
+	  </Module>
+  <?else?>
+    <Module Id="XMPInstall32" Language="1033" Version="$(var.Version)">
+      <Package Id="5AD611BE-AD21-4AAA-B4FA-A5841D8E36CB" Manufacturer="$(var.Manufacturer)" InstallerVersion="400"  Platform="x86"/>
+      <Directory Id="TARGETDIR" Name="SourceDir">
+        <Directory Id="SystemFolder">
+          <Component Id="ModuleComponent32" Guid="76E84B2E-9A49-4A8C-B92E-A2FA940CE4D7">
+            <File Source="$(var.XMPCoreDll)"/>
+            <File Source="$(var.XMPFilesDll)"/>
+          </Component>
+        </Directory>
+      </Directory>
+    </Module>
+  <?endif?>
+</Wix>
