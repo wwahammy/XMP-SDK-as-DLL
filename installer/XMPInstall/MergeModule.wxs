@@ -22,7 +22,7 @@
            <File Source="$(var.XMPCoreDll)"/>
            <File Source="$(var.XMPFilesDll)"/>
 				 </Component>
-
+      
 			  </Directory>
 		  </Directory>
 	  </Module>
