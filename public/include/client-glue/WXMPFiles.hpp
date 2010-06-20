@@ -11,6 +11,7 @@
 // =================================================================================================
 
 #include "client-glue/WXMP_Common.hpp"
+#include "objidl.h"
 
 #if __cplusplus
 extern "C" {
@@ -57,6 +58,9 @@ extern "C" {
 
 #define zXMPFiles_OpenFile_1(filePath,format,openFlags) \
 	WXMPFiles_OpenFile_1 ( this->xmpFilesRef, filePath, format, openFlags, &wResult )
+
+#define zXMPFiles_OpenFile_2(stream,format,openFlags) \
+	WXMPFiles_OpenFile_2 ( this->xmpFilesRef, stream, format, openFlags, &wResult )
     
 #define zXMPFiles_CloseFile_1(closeFlags) \
 	WXMPFiles_CloseFile_1 ( this->xmpFilesRef, closeFlags, &wResult )
@@ -103,6 +107,12 @@ extern void WXMPFiles_CheckPackageFormat_1 ( XMP_StringPtr folderPath,
 
 extern void WXMPFiles_OpenFile_1 ( XMPFilesRef    xmpFilesRef,
                                    XMP_StringPtr  filePath,
+					               XMP_FileFormat format,
+					               XMP_OptionBits openFlags,
+                                   WXMP_Result *  result );
+
+extern void WXMPFiles_OpenFile_2 ( XMPFilesRef    xmpFilesRef,
+                                   IStream * stream,
 					               XMP_FileFormat format,
 					               XMP_OptionBits openFlags,
                                    WXMP_Result *  result );

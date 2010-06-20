@@ -166,6 +166,24 @@ void WXMPFiles_OpenFile_1 ( XMPFilesRef    xmpObjRef,
     
 // -------------------------------------------------------------------------------------------------
 
+void WXMPFiles_OpenFile_2 ( XMPFilesRef    xmpObjRef,
+                            IStream * stream,
+			                XMP_FileFormat format,
+			                XMP_OptionBits openFlags,
+                            WXMP_Result *  wResult )
+{
+	XMP_ENTER_ObjWrite ( XMPFiles, "WXMPFiles_OpenFile_2" )
+		StartPerfCheck ( kAPIPerf_OpenFile, "" );
+	
+		bool ok = thiz->OpenFile ( stream, format, openFlags );
+		wResult->int32Result = ok;
+	
+		EndPerfCheck ( kAPIPerf_OpenFile );
+	XMP_EXIT
+}
+    
+// -------------------------------------------------------------------------------------------------
+
 void WXMPFiles_CloseFile_1 ( XMPFilesRef    xmpObjRef,
                              XMP_OptionBits closeFlags,
                              WXMP_Result *  wResult )

@@ -182,6 +182,22 @@ TXMPFiles ( const tStringObj & filePath,
 
 // -------------------------------------------------------------------------------------------------
 
+
+XMP_CTorDTorIntro(TXMPFiles)::
+TXMPFiles ( IStream * stream,
+	        XMP_FileFormat     format /* = kXMP_UnknownFile */,
+			XMP_OptionBits     openFlags /* = 0 */ ) : xmpFilesRef(Default_CTor())
+{
+	#if XMPFiles_TraceCTorDTor
+		XFPeek* xfPtr = (XFPeek*)this->xmpFilesRef;
+		printf ( "File construct TXMPFiles @ %.8X, ref = %.8X, count = %d\n", this, xfPtr, xfPtr->clientRefs );
+	#endif
+	bool ok = this->OpenFile ( stream, format, openFlags );
+	if ( ! ok ) throw XMP_Error ( kXMPErr_NoFileHandler, "OpenFile returned false" );
+}
+
+// -------------------------------------------------------------------------------------------------
+
 XMP_CTorDTorIntro(TXMPFiles)::
 ~TXMPFiles () throw()
 {
@@ -237,6 +253,17 @@ OpenFile ( XMP_StringPtr  filePath,
 		   XMP_OptionBits openFlags /* =0 */ )
 {
 	WrapCheckBool ( ok, zXMPFiles_OpenFile_1 ( filePath, format, openFlags ) );
+	return ok;
+}
+
+// -------------------------------------------------------------------------------------------------
+
+XMP_MethodIntro(TXMPFiles,bool)::
+OpenFile ( IStream * stream,
+		   XMP_FileFormat format /* = kXMP_UnknownFile */,
+		   XMP_OptionBits openFlags /* =0 */ )
+{
+	WrapCheckBool ( ok, zXMPFiles_OpenFile_2 ( stream, format, openFlags ) );
 	return ok;
 }
 

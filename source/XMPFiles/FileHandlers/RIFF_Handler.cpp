@@ -52,6 +52,7 @@ bool RIFF_CheckFormat ( XMP_FileFormat  format,
 	return false;
 }	// RIFF_CheckFormat
 
+
 // =================================================================================================
 // RIFF_MetaHandler::RIFF_MetaHandler
 // ================================

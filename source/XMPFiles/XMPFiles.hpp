@@ -15,8 +15,10 @@
 #define TXMP_STRING_TYPE std::string
 #include "XMP.hpp"
 
+
 #if ! UNIX_ENV
 	typedef void * LFA_FileRef;
+	
 #else
 	typedef XMP_Int32 LFA_FileRef;
 #endif
@@ -181,6 +183,10 @@ public:
 	bool OpenFile ( XMP_StringPtr  filePath,
 			        XMP_FileFormat format = kXMP_UnknownFile,
 			        XMP_OptionBits openFlags = 0 );
+
+	bool OpenFile(	IStream * istream,
+					XMP_FileFormat format = kXMP_UnknownFile,
+			        XMP_OptionBits openFlags = 0);
     
 	void CloseFile ( XMP_OptionBits closeFlags = 0 );
 	

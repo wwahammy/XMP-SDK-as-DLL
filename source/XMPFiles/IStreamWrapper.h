@@ -3,6 +3,5 @@
 
 struct IStreamWrapper
 {
-	IStream * iStream = -1;
-	LFA_FileRef ref = -1;
+	IStream * iStream;
 }

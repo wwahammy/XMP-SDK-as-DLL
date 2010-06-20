@@ -293,6 +293,14 @@
 
 	}	// LFA_Open
 
+	LFA_FileRef LFA_Open ( IStream * file, char mode )
+	{
+	
+		
+		return (LFA_FileRef)file;
+
+	}	// LFA_Open
+
 	// ---------------------------------------------------------------------------------------------
 
 	LFA_FileRef LFA_Create ( const char * filePath )
@@ -371,10 +379,22 @@
 	void LFA_Close ( LFA_FileRef file )
 	{
 		if ( file == 0 ) return;	// Can happen if LFA_Open throws an exception.
-		HANDLE fileHandle = (HANDLE)file;
 
-		BOOL ok = CloseHandle ( fileHandle );
-		if ( ! ok ) LFA_Throw ( "LFA_Close: CloseHandle failure", kLFAErr_ExternalFailure );
+		IStream * istr = unwrap(file);
+		if (istr != NULL)
+		{
+			HRESULT ok = istr->Commit(STGC_ONLYIFCURRENT);
+			if (FAILED(ok))
+				 LFA_Throw ( "LFA_Close: Commit Failure", kLFAErr_ExternalFailure );
+		}
+		else
+		{
+
+			HANDLE fileHandle = (HANDLE)file;
+
+			BOOL ok = CloseHandle ( fileHandle );
+			if ( ! ok ) LFA_Throw ( "LFA_Close: CloseHandle failure", kLFAErr_ExternalFailure );
+		}
 
 	}	// LFA_Close
 
@@ -382,49 +402,99 @@
 
 	XMP_Int64 LFA_Seek ( LFA_FileRef file, XMP_Int64 offset, int mode, bool * okPtr )
 	{
-		HANDLE fileHandle = (HANDLE)file;
+		IStream * istr = unwrap(file);
+		if (istr == NULL)
+		{
+			//its not an IStream
+			HANDLE fileHandle = (HANDLE)file;
 
-		DWORD method;
-		switch ( mode ) {
-			case SEEK_SET :
-				method = FILE_BEGIN;
-				break;
-			case SEEK_CUR :
-				method = FILE_CURRENT;
-				break;
-			case SEEK_END :
-				method = FILE_END;
-				break;
-			default :
-				LFA_Throw ( "Invalid seek mode", kLFAErr_InternalFailure );
-				break;
-		}
+			DWORD method;
+			switch ( mode ) {
+				case SEEK_SET :
+					method = FILE_BEGIN;
+					break;
+				case SEEK_CUR :
+					method = FILE_CURRENT;
+					break;
+				case SEEK_END :
+					method = FILE_END;
+					break;
+				default :
+					LFA_Throw ( "Invalid seek mode", kLFAErr_InternalFailure );
+					break;
+			}
 
-		LARGE_INTEGER seekOffset, newPos;
-		seekOffset.QuadPart = offset;
+			LARGE_INTEGER seekOffset, newPos;
+			seekOffset.QuadPart = offset;
 		
-		BOOL ok = SetFilePointerEx ( fileHandle, seekOffset, &newPos, method );
-		if ( okPtr != 0 ) {
-			*okPtr = ( ok != 0 ); //convert int(disguised as BOOL) to bool, avoiding conversion warning
-		} else {
-			if ( ! ok ) LFA_Throw ( "LFA_Seek: SetFilePointerEx failure", kLFAErr_ExternalFailure );
-		}
+			BOOL ok = SetFilePointerEx ( fileHandle, seekOffset, &newPos, method );
+			if ( okPtr != 0 ) {
+				*okPtr = ( ok != 0 ); //convert int(disguised as BOOL) to bool, avoiding conversion warning
+			} else {
+				if ( ! ok ) LFA_Throw ( "LFA_Seek: SetFilePointerEx failure", kLFAErr_ExternalFailure );
+			}
 		
-		return newPos.QuadPart;
-
+			return newPos.QuadPart;
+		}
+		else
+		{
+			DWORD method;
+			switch ( mode ) {
+				case SEEK_SET :
+					method = STREAM_SEEK_SET;
+					break;
+				case SEEK_CUR :
+					method = STREAM_SEEK_CUR;
+					break;
+				case SEEK_END :
+					method = STREAM_SEEK_END;
+					break;
+				default :
+					LFA_Throw ( "Invalid seek mode", kLFAErr_InternalFailure );
+					break;
+			}
+			LARGE_INTEGER seekOffset;
+			seekOffset.QuadPart = offset;
+			//its an IStream so do what we need
+			ULARGE_INTEGER newPos;
+			HRESULT hr = istr->Seek(seekOffset,method, &newPos);
+			if (FAILED(hr))
+			{
+				 LFA_Throw ( "LFA_Seek: Seek failure", kLFAErr_ExternalFailure );
+			}
+			
+			return newPos.QuadPart;
+		}
 	}	// LFA_Seek
 
 	// ---------------------------------------------------------------------------------------------
 
 	XMP_Int32 LFA_Read ( LFA_FileRef file, void * buffer, XMP_Int32 bytes, bool requireAll )
 	{
-		HANDLE fileHandle = (HANDLE)file;
-		DWORD  bytesRead;
+		IStream * istr = unwrap(file);
+		if (istr == NULL)
+		{
+			//not an IStream
+			HANDLE fileHandle = (HANDLE)file;
+			DWORD  bytesRead;
 		
-		BOOL ok = ReadFile ( fileHandle, buffer, bytes, &bytesRead, 0 );
-		if ( (! ok) || (requireAll && (bytesRead != bytes)) ) LFA_Throw ( "LFA_Read: ReadFile failure", kLFAErr_ExternalFailure );
+			BOOL ok = ReadFile ( fileHandle, buffer, bytes, &bytesRead, 0 );
+			if ( (! ok) || (requireAll && (bytesRead != bytes)) ) LFA_Throw ( "LFA_Read: ReadFile failure", kLFAErr_ExternalFailure );
 		
-		return bytesRead;
+			return bytesRead;
+		}
+		else
+		{
+			DWORD bytesRead;
+			HRESULT hr = istr->Read(buffer, bytes, &bytesRead);
+			
+			if (FAILED(hr) || (requireAll && (bytesRead != bytes)))
+			{
+				 LFA_Throw ( "LFA_Read: Read failure", kLFAErr_ExternalFailure );
+			}
+			
+			return bytesRead;
+		}
 
 	}	// LFA_Read
 
@@ -432,11 +502,24 @@
 
 	void LFA_Write ( LFA_FileRef file, const void * buffer, XMP_Int32 bytes )
 	{
-		HANDLE fileHandle = (HANDLE)file;
-		DWORD  bytesWritten;
+		IStream * istr = unwrap(file);
+		if (istr == NULL)
+		{
+			//not an IStream
+			HANDLE fileHandle = (HANDLE)file;
+			DWORD  bytesWritten;
 		
-		BOOL ok = WriteFile ( fileHandle, buffer, bytes, &bytesWritten, 0 );
-		if ( (! ok) || (bytesWritten != bytes) ) LFA_Throw ( "LFA_Write: WriteFile failure", kLFAErr_ExternalFailure );
+			BOOL ok = WriteFile ( fileHandle, buffer, bytes, &bytesWritten, 0 );
+			if ( (! ok) || (bytesWritten != bytes) ) LFA_Throw ( "LFA_Write: WriteFile failure", kLFAErr_ExternalFailure );
+		}
+		else
+		{
+			DWORD  bytesWritten;
+		
+			HRESULT hr = istr->Write(buffer, bytes, &bytesWritten);
+			if ( (FAILED(hr)) || (bytesWritten != bytes) ) 
+				LFA_Throw ( "LFA_Write: Write failure", kLFAErr_ExternalFailure );
+		}
 
 	}	// LFA_Write
 
@@ -444,10 +527,16 @@
 
 	void LFA_Flush ( LFA_FileRef file )
 	{
-		HANDLE fileHandle = (HANDLE)file;
+		IStream * istr = unwrap(file);
+		if (istr == NULL)
+		{
+			HANDLE fileHandle = (HANDLE)file;
 
-		BOOL ok = FlushFileBuffers ( fileHandle );
-		if ( ! ok ) LFA_Throw ( "LFA_Flush: FlushFileBuffers failure", kLFAErr_ExternalFailure );
+			BOOL ok = FlushFileBuffers ( fileHandle );
+			if ( ! ok ) LFA_Throw ( "LFA_Flush: FlushFileBuffers failure", kLFAErr_ExternalFailure );
+		}
+		
+		//should the IStream do something here?
 
 	}	// LFA_Flush
 
@@ -455,13 +544,28 @@
 
 	XMP_Int64 LFA_Measure ( LFA_FileRef file )
 	{
-		HANDLE fileHandle = (HANDLE)file;
-		LARGE_INTEGER length;
+		IStream * istr = unwrap(file);
+		if (istr == NULL)
+		{
+			HANDLE fileHandle = (HANDLE)file;
+			LARGE_INTEGER length;
 		
-		BOOL ok = GetFileSizeEx ( fileHandle, &length );
-		if ( ! ok ) LFA_Throw ( "LFA_Measure: GetFileSizeEx failure", kLFAErr_ExternalFailure );
+			BOOL ok = GetFileSizeEx ( fileHandle, &length );
+			if ( ! ok ) LFA_Throw ( "LFA_Measure: GetFileSizeEx failure", kLFAErr_ExternalFailure );
 		
-		return length.QuadPart;
+			return length.QuadPart;
+		}
+		else
+		{
+			STATSTG stg;
+			HRESULT hr = istr->Stat(&stg, STATFLAG_NONAME);
+			if (FAILED(hr))
+			{
+				LFA_Throw ( "LFA_Measure: Stat failure", kLFAErr_ExternalFailure );
+			}
+
+			return stg.cbSize.QuadPart;
+		}
 		
 	}	// LFA_Measure
 
@@ -469,15 +573,29 @@
 
 	void LFA_Extend ( LFA_FileRef file, XMP_Int64 length )
 	{
-		HANDLE fileHandle = (HANDLE)file;
+		IStream * istr = unwrap(file);
+		if (istr == NULL)
+		{
+			HANDLE fileHandle = (HANDLE)file;
 
-		LARGE_INTEGER winLength;
-		winLength.QuadPart = length;
+			LARGE_INTEGER winLength;
+			winLength.QuadPart = length;
 
-		BOOL ok = SetFilePointerEx ( fileHandle, winLength, 0, FILE_BEGIN );
-		if ( ! ok ) LFA_Throw ( "LFA_Extend: SetFilePointerEx failure", kLFAErr_ExternalFailure );
-		ok = SetEndOfFile ( fileHandle );
-		if ( ! ok ) LFA_Throw ( "LFA_Extend: SetEndOfFile failure", kLFAErr_ExternalFailure );
+			BOOL ok = SetFilePointerEx ( fileHandle, winLength, 0, FILE_BEGIN );
+			if ( ! ok ) LFA_Throw ( "LFA_Extend: SetFilePointerEx failure", kLFAErr_ExternalFailure );
+			ok = SetEndOfFile ( fileHandle );
+			if ( ! ok ) LFA_Throw ( "LFA_Extend: SetEndOfFile failure", kLFAErr_ExternalFailure );
+		}
+		else
+		{
+			ULARGE_INTEGER lengthstruct;
+			lengthstruct.QuadPart = length;
+			HRESULT hr = istr->SetSize(lengthstruct);
+			if (FAILED(hr))
+			{
+				 LFA_Throw ( "LFA_Extend: SetSize failure", kLFAErr_ExternalFailure );
+			}
+		}
 
 	}	// LFA_Extend
 
@@ -485,21 +603,55 @@
 
 	void LFA_Truncate ( LFA_FileRef file, XMP_Int64 length )
 	{
-		HANDLE fileHandle = (HANDLE)file;
+		IStream * istr = unwrap(file);
+		if (istr == NULL)
+		{
+			HANDLE fileHandle = (HANDLE)file;
 
-		LARGE_INTEGER winLength;
-		winLength.QuadPart = length;
+			LARGE_INTEGER winLength;
+			winLength.QuadPart = length;
 
-		BOOL ok = SetFilePointerEx ( fileHandle, winLength, 0, FILE_BEGIN );
-		if ( ! ok ) LFA_Throw ( "LFA_Truncate: SetFilePointerEx failure", kLFAErr_ExternalFailure );
-		ok = SetEndOfFile ( fileHandle );
-		if ( ! ok ) LFA_Throw ( "LFA_Truncate: SetEndOfFile failure", kLFAErr_ExternalFailure );
-
+			BOOL ok = SetFilePointerEx ( fileHandle, winLength, 0, FILE_BEGIN );
+			if ( ! ok ) LFA_Throw ( "LFA_Truncate: SetFilePointerEx failure", kLFAErr_ExternalFailure );
+			ok = SetEndOfFile ( fileHandle );
+			if ( ! ok ) LFA_Throw ( "LFA_Truncate: SetEndOfFile failure", kLFAErr_ExternalFailure );
+		}
+		else
+		{
+			ULARGE_INTEGER lengthstruct;
+			lengthstruct.QuadPart = length;
+			HRESULT hr = istr->SetSize(lengthstruct);
+			if (FAILED(hr))
+			{
+				 LFA_Throw ( "LFA_Extend: SetSize failure", kLFAErr_ExternalFailure );
+			}
+		}
 	}	// LFA_Truncate
 
 	// ---------------------------------------------------------------------------------------------
 
+	// Unwraps data of IStream * which have been wrapped to LFA_FileRef
+	IStream * unwrap(LFA_FileRef wrapped)
+	{
+		
+		HANDLE testHandle = (HANDLE)wrapped;
+		DWORD ignore = NULL;
+		BOOL ok = GetHandleInformation(testHandle, &ignore);
+		if (!ok)
+		{
+			//this isn't a handle, we assume its an IStream
+			return (IStream *)wrapped;
+		}
+		else
+		{
+			//its a handle, not an IStream so we return NULL
+			return NULL;
+		}
+	}
+
 #endif	// XMP_WinBuild
+
+
 
 // =================================================================================================
 // LFA implementations for POSIX

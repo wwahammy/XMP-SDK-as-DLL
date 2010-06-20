@@ -14,6 +14,7 @@
 #include "UnicodeConversions.hpp"
 
 // These are the official, fully supported handlers.
+
 #include "FileHandlers/JPEG_Handler.hpp"
 #include "FileHandlers/TIFF_Handler.hpp"
 #include "FileHandlers/PSD_Handler.hpp"
@@ -22,7 +23,10 @@
 #include "FileHandlers/Scanner_Handler.hpp"
 #include "FileHandlers/MPEG2_Handler.hpp"
 #include "FileHandlers/PNG_Handler.hpp"
+
 #include "FileHandlers/RIFF_Handler.hpp"
+
+
 #include "FileHandlers/MP3_Handler.hpp"
 #include "FileHandlers/SWF_Handler.hpp"
 #include "FileHandlers/UCF_Handler.hpp"
@@ -34,6 +38,7 @@
 #include "FileHandlers/XDCAMEX_Handler.hpp"
 #include "FileHandlers/AVCHD_Handler.hpp"
 #include "FileHandlers/ASF_Handler.hpp"
+
 
 // =================================================================================================
 /// \file XMPFiles.cpp
@@ -625,6 +630,256 @@ SelectSmartHandler ( XMPFiles * thiz, XMP_StringPtr clientPath, XMP_FileFormat f
 
 }	// SelectSmartHandler
 
+static XMPFileHandlerInfo *
+SelectSmartHandler ( XMPFiles * thiz, IStream* stream, XMP_FileFormat format, XMP_OptionBits openFlags )
+{
+	
+	// There are 4 stages in finding a handler, ending at the first success:
+	//   1. If the client passes in a format, try that handler.
+	//   2. Try all of the folder-oriented handlers.
+	//   3. Try a file-oriented handler based on the file extension.
+	//   4. Try all of the file-oriented handlers.
+	//
+	// The most common case is almost certainly #3, so we want to get there quickly. Most of the
+	// time the client won't pass in a format, so #1 takes no time. The folder-oriented handler
+	// checks are preceded by minimal folder checks. These checks are meant to be fast in the
+	// failure case. The folder-oriented checks have to go before the general file-oriented checks
+	// because the client path might be to one of the inner files, and we might have a file-oriented
+	// handler for that kind of file, but we want to recognize the clip. More details are below.
+	//
+	// In brief, the folder-oriented formats use shallow trees with specific folder names and
+	// highly stylized file names. The user thinks of the tree as a collection of clips, each clip
+	// is stored as multiple files for video, audio, metadata, etc. The folder-oriented stage has
+	// to be first because there can be files in the structure that are also covered by a
+	// file-oriented handler.
+	//
+	// In the file-oriented case, the CheckProc should do as little as possible to determine the
+	// format, based on the actual file content. If that is not possible, use the format hint. The
+	// initial CheckProc calls (steps 1 and 3) has the presumed format in this->format, the later
+	// calls (step 4) have kXMP_UnknownFile there.
+	//
+	// The folder-oriented checks need to be well optimized since the formats are relatively rare,
+	// but have to go first and could require multiple file system calls to identify. We want to
+	// get to the first file-oriented guess as quickly as possible, that is the real handler most of
+	// the time.
+	//
+	// The folder-oriented handlers are for things like P2 and XDCAM that use files distributed in a
+	// well defined folder structure. Using a portion of P2 as an example:
+	//	.../MyMovie
+	//		CONTENTS
+	//			CLIP
+	//				0001AB.XML
+	//				0002CD.XML
+	//			VIDEO
+	//				0001AB.MXF
+	//				0002CD.MXF
+	//			VOICE
+	//				0001AB.WAV
+	//				0002CD.WAV
+	//
+	// The user thinks of .../MyMovie as the container of P2 stuff, in this case containing 2 clips
+	// called 0001AB and 0002CD. The exact folder structure and file layout differs, but the basic
+	// concepts carry across all of the folder-oriented handlers.
+	//
+	// The client path can be a conceptual clip path like .../MyMovie/0001AB, or a full path to any
+	// of the contained files. For file paths we have to behave the same as the implied conceptual
+	// path, e.g. we don't want .../MyMovie/CONTENTS/VOICE/0001AB.WAV to invoke the WAV handler.
+	// There might also be a mapping from user friendly names to clip names (e.g. Intro to 0001AB).
+	// If so that is private to the handler and does not affect this code.
+	//
+	// In order to properly handle the file path input we have to look for the folder-oriented case
+	// before any of the file-oriented cases. And since these are relatively rare, hence fail most of
+	// the time, we have to get in and out fast in the not handled case. That is what we do here.
+	//
+	// The folder-oriented processing done here is roughly:
+	//
+	// 1. Get the state of the client path: does-not-exist, is-file, is-folder, is-other.
+	// 2. Reject is-folder and is-other, they can't possibly be a valid case.
+	// 3. For does-not-exist:
+	//	3a. Split the client path into a leaf component and root path.
+	//	3b. Make sure the root path names an existing folder.
+	//	3c. Make sure the root folder has a viable top level child folder (e.g. CONTENTS).
+	// 4. For is-file:
+	//	4a. Split the client path into a root path, grandparent folder, parent folder, and leaf name.
+	//	4b. Make sure the parent or grandparent has a viable name (e.g. CONTENTS).
+	// 5. Try the registered folder handlers.
+	//
+	// For the common case of "regular" files, we should only get as far as 3b. This is just 1 file
+	// system call to get the client path state and some string processing.
+	
+	char openMode = 'r';
+	if ( openFlags & kXMPFiles_OpenForUpdate ) openMode = 'w';
+
+	XMPFileHandlerInfo * handlerInfo = 0;
+	bool foundHandler = false;
+	/*
+	FileMode clientMode = GetFileMode ( clientPath );
+	if ( (clientMode == kFMode_IsFolder) || (clientMode == kFMode_IsOther) ) return 0;
+	
+	// Extract some info from the clientPath, needed for various checks.
+	
+	std::string rootPath, leafName, fileExt;
+
+	rootPath = clientPath;
+	SplitLeafName ( &rootPath, &leafName );
+	if ( leafName.empty() ) return 0;
+
+	size_t extPos = leafName.size();
+	for ( --extPos; extPos > 0; --extPos ) if ( leafName[extPos] == '.' ) break;
+	if ( leafName[extPos] == '.' ) {
+		fileExt.assign ( &leafName[extPos+1] );
+		MakeLowerCase ( &fileExt );
+		leafName.erase ( extPos );
+	}
+	*/
+	thiz->format = kXMP_UnknownFile;	// Make sure it is preset for later checks.
+	thiz->openFlags = openFlags;
+	
+	// If the client passed in a format, try that first.
+	
+	if ( format != kXMP_UnknownFile ) {
+
+		std::string emptyStr;
+		handlerInfo = PickDefaultHandler ( format, emptyStr );	// Picks based on just the format.
+	
+		if ( handlerInfo != 0 ) {
+
+			if ( (thiz->fileRef == 0) && (! (handlerInfo->flags & kXMPFiles_HandlerOwnsFile)) ) {
+				thiz->fileRef = LFA_Open ( stream, openMode );
+				XMP_Assert ( thiz->fileRef != 0 ); // LFA_Open must either succeed or throw.
+			}
+			thiz->format = format;	// ! Hack to tell the CheckProc thiz is an initial call.
+
+			if ( ! (handlerInfo->flags & kXMPFiles_FolderBasedFormat) ) {
+				CheckFileFormatProc CheckProc = (CheckFileFormatProc) (handlerInfo->checkProc);
+				foundHandler = CheckProc ( format, NULL, thiz->fileRef, thiz );
+			} else {
+				// *** Don't try here yet. These are messy, needing existence checking and path processing.
+				// *** CheckFolderFormatProc CheckProc = (CheckFolderFormatProc) (handlerInfo->checkProc);
+				// *** foundHandler = CheckProc ( handlerInfo->format, rootPath, gpName, parentName, leafName, thiz );
+				// *** Don't let OpenStrictly cause an early exit:
+				if ( openFlags & kXMPFiles_OpenStrictly ) openFlags ^= kXMPFiles_OpenStrictly;
+			}
+
+			XMP_Assert ( foundHandler || (thiz->tempPtr == 0) );
+			if ( foundHandler ) return handlerInfo;
+			handlerInfo = 0;	// ! Clear again for later use.
+
+		}
+	
+		if ( openFlags & kXMPFiles_OpenStrictly ) return 0;
+
+	}
+
+	// Try the folder handlers if appropriate.
+
+	XMP_Assert ( handlerInfo == 0 );
+	//XMP_Assert ( (clientMode == kFMode_IsFile) || (clientMode == kFMode_DoesNotExist) );
+
+	//std::string gpName, parentName;
+	/*
+	if ( clientMode == kFMode_DoesNotExist ) {
+
+		// 3. For does-not-exist:
+		//	3a. Split the client path into a leaf component and root path.
+		//	3b. Make sure the root path names an existing folder.
+		//	3c. Make sure the root folder has a viable top level child folder.
+		
+		// ! This does "return 0" on failure, the file does not exist so a normal file handler can't apply.
+
+		if ( GetFileMode ( rootPath.c_str() ) != kFMode_IsFolder ) return 0;
+		thiz->format = CheckTopFolderName ( rootPath );
+		if ( thiz->format == kXMP_UnknownFile ) return 0;
+
+		handlerInfo = TryFolderHandlers ( thiz->format, rootPath, gpName, parentName, leafName, thiz );	// ! Parent and GP are empty.
+		return handlerInfo;	// ! Return found handler or 0.
+
+	}
+	*/
+	//XMP_Assert ( clientMode == kFMode_IsFile );
+
+	// 4. For is-file:
+	//	4a. Split the client path into root, grandparent, parent, and leaf.
+	//	4b. Make sure the parent or grandparent has a viable name.
+
+	// ! Don't "return 0" on failure, this has to fall through to the normal file handlers.
+	/*
+	SplitLeafName ( &rootPath, &parentName );
+	SplitLeafName ( &rootPath, &gpName );
+	std::string origGPName ( gpName );	// ! Save the original case for XDCAM-FAM.
+	MakeUpperCase ( &parentName );
+	MakeUpperCase ( &gpName );
+
+	thiz->format = CheckParentFolderNames ( rootPath, gpName, parentName, leafName );
+
+	if ( thiz->format != kXMP_UnknownFile ) {
+
+		if ( (thiz->format == kXMP_XDCAM_FAMFile) &&
+			 ((parentName == "CLIP") || (parentName == "EDIT") || (parentName == "SUB")) ) {
+			// ! The standard says Clip/Edit/Sub, but we just shifted to upper case.
+			gpName = origGPName;	// ! XDCAM-FAM has just 1 level of inner folder, preserve the "MyMovie" case.
+		}
+
+		handlerInfo = TryFolderHandlers ( thiz->format, rootPath, gpName, parentName, leafName, thiz );
+		if ( handlerInfo != 0 ) return handlerInfo;
+
+	}
+
+	// Try an initial file-oriented handler based on the extension.
+
+	handlerInfo = PickDefaultHandler ( kXMP_UnknownFile, fileExt );	// Picks based on just the extension.
+
+	if ( handlerInfo != 0 ) {
+		if ( (thiz->fileRef == 0) && (! (handlerInfo->flags & kXMPFiles_HandlerOwnsFile)) ) {
+			thiz->fileRef = LFA_Open ( clientPath, openMode );
+			XMP_Assert ( thiz->fileRef != 0 ); // LFA_Open must either succeed or throw.
+		} else if ( (thiz->fileRef != 0) && (handlerInfo->flags & kXMPFiles_HandlerOwnsFile) ) {
+			LFA_Close ( thiz->fileRef );
+			thiz->fileRef = 0;
+		}
+		thiz->format = handlerInfo->format;	// ! Hack to tell the CheckProc thiz is an initial call.
+		CheckFileFormatProc CheckProc = (CheckFileFormatProc) (handlerInfo->checkProc);
+		foundHandler = CheckProc ( handlerInfo->format, clientPath, thiz->fileRef, thiz );
+		XMP_Assert ( foundHandler || (thiz->tempPtr == 0) );
+		if ( foundHandler ) return handlerInfo;
+	}
+			
+	// Search the handlers that don't want to open the file themselves.
+
+	if ( thiz->fileRef == 0 ) thiz->fileRef = LFA_Open ( clientPath, openMode );
+	XMP_Assert ( thiz->fileRef != 0 ); // LFA_Open must either succeed or throw.
+	XMPFileHandlerTablePos handlerPos = sNormalHandlers->begin();
+
+	for ( ; handlerPos != sNormalHandlers->end(); ++handlerPos ) {
+		thiz->format = kXMP_UnknownFile;	// ! Hack to tell the CheckProc this is not an initial call.
+		handlerInfo = &handlerPos->second;
+		CheckFileFormatProc CheckProc = (CheckFileFormatProc) (handlerInfo->checkProc);
+		foundHandler = CheckProc ( handlerInfo->format, clientPath, thiz->fileRef, thiz );
+		XMP_Assert ( foundHandler || (thiz->tempPtr == 0) );
+		if ( foundHandler ) return handlerInfo;
+	}
+
+	// Search the handlers that do want to open the file themselves.
+
+	LFA_Close ( thiz->fileRef );
+	thiz->fileRef = 0;
+	handlerPos = sOwningHandlers->begin();
+
+	for ( ; handlerPos != sOwningHandlers->end(); ++handlerPos ) {
+		thiz->format = kXMP_UnknownFile;	// ! Hack to tell the CheckProc this is not an initial call.
+		handlerInfo = &handlerPos->second;
+		CheckFileFormatProc CheckProc = (CheckFileFormatProc) (handlerInfo->checkProc);
+		foundHandler = CheckProc ( handlerInfo->format, clientPath, thiz->fileRef, thiz );
+		XMP_Assert ( foundHandler || (thiz->tempPtr == 0) );
+		if ( foundHandler ) return handlerInfo;
+	}
+	*/
+	// Failed to find a smart handler.
+	
+	return 0;
+
+}	// SelectSmartHandler
+
 // =================================================================================================
 
 /* class-static */
@@ -1074,7 +1329,89 @@ XMPFiles::OpenFile ( XMP_StringPtr  clientPath,
 	return true;
 
 }	// XMPFiles::OpenFile
- 
+
+bool
+XMPFiles::OpenFile(IStream * istream, 
+					XMP_FileFormat format /* = kXMP_UnknownFile */,
+	                XMP_OptionBits openFlags /* = 0 */ )
+{
+	if ( this->handler != 0 ) XMP_Throw ( "File already open", kXMPErr_BadParam );
+	if ( this->fileRef != 0 ) {	// ! Sanity check to prevent open file leaks.
+		LFA_Close ( this->fileRef );
+		this->fileRef = 0;
+	}
+	
+	this->format = kXMP_UnknownFile;	// Make sure it is preset for later check.
+	this->openFlags = openFlags;
+	
+	char openMode = 'r';
+	if ( openFlags & kXMPFiles_OpenForUpdate ) openMode = 'w';
+
+	// Find the handler, fill in the XMPFiles member variables, cache the desired file data.
+
+	XMPFileHandlerInfo * handlerInfo  = 0;
+	XMPFileHandlerCTor   handlerCTor  = 0;
+	XMP_OptionBits       handlerFlags = 0;
+	
+	if ( ! (openFlags & kXMPFiles_OpenUsePacketScanning) ) {
+		handlerInfo = SelectSmartHandler ( this, istream, format, openFlags );
+	}
+	/*
+	if ( handlerInfo == 0 ) {
+
+		// No smart handler, packet scan if appropriate.
+
+		if ( openFlags & kXMPFiles_OpenUseSmartHandler ) return false;
+
+		if ( openFlags & kXMPFiles_OpenLimitedScanning ) {
+			bool scanningOK = false;
+			for ( size_t i = 0; kKnownScannedFiles[i] != 0; ++i ) {
+				if ( fileExt == kKnownScannedFiles[i] ) { scanningOK = true; break; }
+			}
+			if ( ! scanningOK ) return false;
+		}
+
+		handlerInfo = &kScannerHandlerInfo;
+		if ( fileRef == 0 ) 
+			fileRef = LFA_Open ( istream, openMode );
+
+	}*/
+
+	XMP_Assert ( handlerInfo != 0 );
+	handlerCTor  = handlerInfo->handlerCTor;
+	handlerFlags = handlerInfo->flags;
+	
+	this->filePath = "";
+
+	XMPFileHandler* handler = (*handlerCTor) ( this );
+	XMP_Assert ( handlerFlags == handler->handlerFlags );
+	
+	this->handler = handler;
+	if ( this->format == kXMP_UnknownFile ) this->format = handlerInfo->format;	// ! The CheckProc might have set it.
+
+	try {
+		handler->CacheFileData();
+	} catch ( ... ) {
+		delete this->handler;
+		this->handler = 0;
+		if ( ! (handlerFlags & kXMPFiles_HandlerOwnsFile) ) {
+			LFA_Close ( this->fileRef );
+			this->fileRef = 0;
+		}
+		throw;
+	}
+	
+	if ( handler->containsXMP ) FillPacketInfo ( handler->xmpPacket, &handler->packetInfo );
+
+	if ( (! (openFlags & kXMPFiles_OpenForUpdate)) && (! (handlerFlags & kXMPFiles_HandlerOwnsFile)) ) {
+		// Close the disk file now if opened for read-only access.
+		LFA_Close ( this->fileRef );
+		this->fileRef = 0;
+	}
+	
+	return true;
+
+}
 // =================================================================================================
 
 void

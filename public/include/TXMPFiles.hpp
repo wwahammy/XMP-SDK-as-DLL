@@ -4,7 +4,8 @@
 #if ( ! __XMP_hpp__ )
     #error "Do not directly include, use XMP.hpp"
 #endif
-
+//I HATE THIS HERE
+#include "objidl.h"
 // =================================================================================================
 // ADOBE SYSTEMS INCORPORATED
 // Copyright 2002 Adobe Systems Incorporated
@@ -175,6 +176,18 @@ public:
 	/// for the file path. It is otherwise identical; see details in the canonical form.
 
     TXMPFiles ( const tStringObj & filePath,
+				XMP_FileFormat     format = kXMP_UnknownFile,
+				XMP_OptionBits     openFlags = 0 );
+
+
+	 // ---------------------------------------------------------------------------------------------
+    /// @brief Alternate constructor associates the new \c XMPFiles object with a specific file,
+    /// using a string object.
+    ///
+    /// Overloads the basic form of the function, allowing you to pass a string object
+	/// for the file path. It is otherwise identical; see details in the canonical form.
+
+    TXMPFiles ( IStream * stream,
 				XMP_FileFormat     format = kXMP_UnknownFile,
 				XMP_OptionBits     openFlags = 0 );
 
@@ -377,6 +390,16 @@ public:
 	bool OpenFile ( const tStringObj & filePath,
 				    XMP_FileFormat     format = kXMP_UnknownFile,
 				    XMP_OptionBits     openFlags = 0 );
+
+	// ---------------------------------------------------------------------------------------------
+    /// @brief \c OpenFile() opens a file for metadata access, using an IStream
+    ///
+    /// Overloads the basic form of the function. It is otherwise identical; see details in the canonical form.
+
+	bool OpenFile ( IStream *		   stream,
+				    XMP_FileFormat     format = kXMP_UnknownFile,
+				    XMP_OptionBits     openFlags = 0 );
+
 
     // ---------------------------------------------------------------------------------------------
     /// @brief CloseFile() explicitly closes an opened file.

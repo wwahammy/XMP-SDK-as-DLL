@@ -32,6 +32,7 @@
 
 #include "XMP_Const.h"
 #include "EndianUtils.hpp"
+#include "Objidl.h"
 
 using namespace std;
 
@@ -55,6 +56,7 @@ extern void LFA_Throw ( const char* msg, int id );	// Function needed for reuse 
 // *** Make sure the semantics of open/create/rename are consistent, e.g. about create of existing.
 
 extern LFA_FileRef	LFA_Open     ( const char* fileName, char openMode ); // Mode is 'r' or 'w'.
+extern LFA_FileRef  LFA_Open	 (IStream * stream, char openMode);
 extern LFA_FileRef	LFA_Create   ( const char* fileName );
 extern void			LFA_Delete   ( const char* fileName );
 extern void			LFA_Rename   ( const char* oldName, const char * newName );
@@ -86,6 +88,7 @@ extern void			LFA_Move     ( LFA_FileRef srcFile, XMP_Int64 srcOffset, LFA_FileR
 extern bool			LFA_isEof	( LFA_FileRef file );
 extern char			LFA_GetChar ( LFA_FileRef file );
 
+IStream *			unwrap(LFA_FileRef wrapped);
 enum { kLFA_RequireAll = true };	// Used for requireAll to LFA_Read.
 
 // =================================================================================================
