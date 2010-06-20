@@ -4,3 +4,6 @@ intermediate
 *.sdf
 ipch
 int
+*.opensdf
+bin
+target
